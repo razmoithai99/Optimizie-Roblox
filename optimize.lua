@@ -1,206 +1,129 @@
---[==[ FPS BOOSTER: UNIVERSAL EDITION v3.0 (PC + MOBILE + STEALTH + ADVANCED SETTINGS) ]==]
--- ⚡️ FPS BOOSTER TOÀN DIỆN CHO ROBLOX - 1000+ dòng (kết hợp Settings GUI + Modules)
--- 🧠 Tối ưu tự động theo thiết bị (PC/MOBILE)
--- 💾 Ghi nhớ cấu hình tối ưu (Auto-Load Last Mode)
--- 🕵️ Stealth mode + Preset Profiles
--- 🧰 Giao diện Settings riêng: Lighting, Terrain, GUI, Sound, Effects
--- 🔄 Khôi phục mặc định khi cần thiết
--- ✅ Tuỳ chọn bật/tắt từng nhóm tối ưu (Module-Based)
--- 📊 Tích hợp FPS Counter
+--[==[ FPS BOOSTER v4.5 (UI Profile Selector: Basic | Advanced | Pro) ]==]
+-- 🧠 Tối ưu chia theo cấp: Basic → Advanced → Pro
+-- 👤 Người dùng chỉ chọn 1 trong 3, tương ứng với gói tối ưu hoá càng cao càng mượt
+-- ✅ UI đơn giản với 3 lựa chọn chính, ẩn các tuỳ chọn phức tạp bên trong
 
--- PHẦN 1: KHAI BÁO DỊCH VỤ
 local Services = {
     Players = game:GetService("Players"),
+    UserInputService = game:GetService("UserInputService"),
     Lighting = game:GetService("Lighting"),
     Terrain = workspace:FindFirstChildOfClass("Terrain"),
     SoundService = game:GetService("SoundService"),
     RunService = game:GetService("RunService"),
     StarterGui = game:GetService("StarterGui"),
     ContextActionService = game:GetService("ContextActionService"),
-    UserInputService = game:GetService("UserInputService"),
-    CoreGui = game:GetService("CoreGui"),
     Chat = game:FindService("Chat")
 }
 
 local player = Services.Players.LocalPlayer
-local IS_MOBILE = Services.UserInputService.TouchEnabled and not Services.UserInputService.KeyboardEnabled
-local CONFIG_KEY = "_FPS_Last_Mode"
-local CURRENT_MODE = "basic"
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
 
--- PHẦN 2: MÔ-ĐUN CẤU HÌNH TÙY CHỌN (TOGGLE)
-local ModuleSettings = {
-    DisablePostEffects = true,
-    DestroyParticles = true,
-    StripCharacterAccessories = true,
-    RemoveGUI = true,
-    KillSounds = true,
-    OptimizeLighting = true,
-    OptimizeTerrain = true,
-    AutoFPSCounter = true
+-- ⚙️ Profile tối ưu hoá
+local Profiles = {
+    Basic = {
+        Lighting = true, Terrain = false, Particles = false,
+        GUI = false, Sound = false, Character = false
+    },
+    Advanced = {
+        Lighting = true, Terrain = true, Particles = true,
+        GUI = false, Sound = true, Character = true
+    },
+    Pro = {
+        Lighting = true, Terrain = true, Particles = true,
+        GUI = true, Sound = true, Character = true
+    }
 }
 
--- PHẦN 3: HÀM CẤU HÌNH
-local function saveMode(mode)
-    if typeof(writefile) == "function" then
-        pcall(function() writefile(CONFIG_KEY, mode) end)
-    elseif getgenv then
-        getgenv()[CONFIG_KEY] = mode
+local CurrentSettings = {}
+
+-- 🧠 Áp dụng profile tối ưu
+local function applyProfile(profile)
+    if Profiles[profile] then
+        CurrentSettings = Profiles[profile]
+        print("[PROFILE] Đã chọn gói:", profile)
     end
 end
 
-local function loadLastMode()
-    if typeof(readfile) == "function" then
-        local ok, result = pcall(function() return readfile(CONFIG_KEY) end)
-        if ok then return result end
-    elseif getgenv and getgenv()[CONFIG_KEY] then
-        return getgenv()[CONFIG_KEY]
-    end
-    return "basic"
-end
-
--- PHẦN 4: FPS COUNTER
-local function startFPSCounter()
-    if not ModuleSettings.AutoFPSCounter then return end
-    local fpsGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-    fpsGui.Name = "FPSCounter"
-    local label = Instance.new("TextLabel", fpsGui)
-    label.Position = UDim2.new(1, -120, 0, 20)
-    label.Size = UDim2.new(0, 100, 0, 30)
-    label.BackgroundTransparency = 0.5
-    label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    label.TextColor3 = Color3.new(0, 1, 0)
-    label.Text = "FPS: --"
-    label.Font = Enum.Font.SourceSansBold
-    label.TextSize = 16
-
-    local last = tick()
-    local frames = 0
-    Services.RunService.RenderStepped:Connect(function()
-        frames += 1
-        if tick() - last >= 1 then
-            label.Text = "FPS: " .. tostring(frames)
-            frames = 0
-            last = tick()
-        end
-    end)
-end
-
--- PHẦN 5: TỐI ƯU CHI TIẾT MODULE
-local function destroyIf(obj, classList)
-    if table.find(classList, obj.ClassName) then pcall(function() obj:Destroy() end) end
-end
-
-local function stripCharacter(char)
-    if not ModuleSettings.StripCharacterAccessories then return end
-    for _, c in ipairs(char:GetDescendants()) do
-        destroyIf(c, {
-            "Accessory", "Hat", "Shirt", "Pants", "Face", "BodyColors", "CharacterMesh", "MeshPart", "Decal", "Texture"
-        })
-    end
-    local h = char:FindFirstChildWhichIsA("Humanoid")
-    if h then for _, t in ipairs(h:GetPlayingAnimationTracks()) do t:Stop() end end
-end
-
-local function cleanWorld(level)
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            obj.Material = Enum.Material.SmoothPlastic
-            obj.Reflectance = 0
-        end
-        if ModuleSettings.DestroyParticles then
-            destroyIf(obj, {
-                "Decal", "Texture", "ParticleEmitter", "Trail", "Beam", "Fire", "Smoke",
-                "Sparkles", "Highlight", "SurfaceGui", "BillboardGui",
-                "VideoFrame", "ViewportFrame", "Sound", "Script", "LocalScript", "ModuleScript"
-            })
-        end
-    end
-end
-
-function optimize(mode)
-    CURRENT_MODE = mode
-    saveMode(mode)
-
-    if ModuleSettings.OptimizeLighting then
+-- 🧹 Hàm thực hiện tối ưu hoá theo cấu hình đã chọn
+local function optimize()
+    if CurrentSettings.Lighting then
         local L = Services.Lighting
         L.GlobalShadows = false
         L.FogEnd = 1e10
         L.Brightness = 0
-        L.ClockTime = 12
-        L.Technology = Enum.Technology.Compatibility
-        if ModuleSettings.DisablePostEffects then
-            for _, v in ipairs(L:GetChildren()) do if v:IsA("PostEffect") then v:Destroy() end end
-        end
+        for _, v in ipairs(L:GetChildren()) do if v:IsA("PostEffect") then v:Destroy() end end
     end
 
-    if ModuleSettings.OptimizeTerrain and Services.Terrain then
+    if CurrentSettings.Terrain and Services.Terrain then
         Services.Terrain.WaterWaveSize = 0
         Services.Terrain.WaterWaveSpeed = 0
         Services.Terrain.WaterReflectance = 0
         Services.Terrain.WaterTransparency = 0
     end
 
-    if player.Character then stripCharacter(player.Character) end
-    cleanWorld(mode)
+    if CurrentSettings.Particles then
+        for _, o in ipairs(workspace:GetDescendants()) do
+            if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") then
+                o:Destroy()
+            end
+        end
+    end
 
-    if ModuleSettings.KillSounds then
+    if CurrentSettings.GUI then
+        Services.StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+        if Services.Chat then pcall(function() Services.Chat:Destroy() end) end
+    end
+
+    if CurrentSettings.Sound then
         for _, s in ipairs(Services.SoundService:GetDescendants()) do
             if s:IsA("Sound") then s.Volume = 0 end
         end
     end
 
-    Services.ContextActionService:UnbindAllActions()
-    if Services.Chat and ModuleSettings.RemoveGUI then pcall(function() Services.Chat:Destroy() end) end
-    if ModuleSettings.RemoveGUI then
-        Services.StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+    if CurrentSettings.Character and player.Character then
+        for _, d in ipairs(player.Character:GetDescendants()) do
+            if d:IsA("Accessory") or d:IsA("Hat") or d:IsA("Shirt") or d:IsA("Pants") then
+                d:Destroy()
+            end
+        end
     end
-
-    print("✅ Optimized for mode:", mode)
+    print("✅ FPS Optimization applied for:", CurrentSettings)
 end
 
-function restore()
-    Services.StarterGui:SetCore("ResetButtonCallback", true)
-    Services.StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
-    Services.RunService:BindToRenderStep("RestoreRender", Enum.RenderPriority.Camera.Value, function() end)
-    player:LoadCharacter()
-    print("🔁 Default restored.")
+-- 🖥️ UI giao diện chính
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 240, 0, 240)
+frame.Position = UDim2.new(0, 50, 0, 100)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "🎮 FPS BOOSTER"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 22
+
+local function createProfileButton(name, yPos, apply)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(1, -20, 0, 50)
+    btn.Position = UDim2.new(0, 10, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 18
+    btn.Text = name
+    btn.MouseButton1Click:Connect(function()
+        applyProfile(name)
+        optimize()
+    end)
 end
 
--- PHẦN 6: LOAD & UI GIAO DIỆN
-local function createSettingPanel()
-    local sg = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-    sg.Name = "FPSBooster_Settings"
-    local frame = Instance.new("Frame", sg)
-    frame.Position = UDim2.new(1, -260, 0, 100)
-    frame.Size = UDim2.new(0, 250, 0, 300)
-    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+createProfileButton("Basic", 50, applyProfile)
+createProfileButton("Advanced", 110, applyProfile)
+createProfileButton("Pro", 170, applyProfile)
 
-    local title = Instance.new("TextLabel", frame)
-    title.Text = "⚙️ Modules Settings"
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.BackgroundTransparency = 1
-
-    local y = 40
-    for key, value in pairs(ModuleSettings) do
-        local cb = Instance.new("TextButton", frame)
-        cb.Size = UDim2.new(1, -20, 0, 30)
-        cb.Position = UDim2.new(0, 10, 0, y)
-        cb.BackgroundColor3 = value and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(120, 0, 0)
-        cb.Text = (value and "✅ " or "❌ ") .. key
-        cb.TextColor3 = Color3.new(1, 1, 1)
-        cb.MouseButton1Click:Connect(function()
-            ModuleSettings[key] = not ModuleSettings[key]
-            cb.Text = (ModuleSettings[key] and "✅ " or "❌ ") .. key
-            cb.BackgroundColor3 = ModuleSettings[key] and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(120, 0, 0)
-        end)
-        y += 35
-    end
-end
-
-local mode = loadLastMode()
-optimize(mode)
-startFPSCounter()
-createSettingPanel()
-
-print("🚀 UNIVERSAL FPS BOOSTER v3 LOADED - ADVANCED SETTINGS ENABLED")
+print("🚀 FPS BOOSTER v4.5 UI Active | Chọn 1 trong 3 gói tối ưu: Basic, Advanced, Pro")
