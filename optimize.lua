@@ -1,144 +1,131 @@
---[==[ FPS BOOSTER v8.0 (ALL-IN-ONE - AUTO + EXTREME + UI + MONITOR + CLEAN) ]==]
--- ✅ Gộp tất cả: UI chọn gói, tự động nhận FPS, Extreme clean, minimize, FPS Counter
--- ☑️ Gói chọn: Basic / Advanced / Pro (gồm deep clean)
--- 🧠 Auto chọn gói theo FPS trung bình (sau 5 giây)
--- 💤 Idle FPS giảm tải nếu đứng yên
+--[==[ FPS BOOSTER v9.0 (ALL-IN-ONE: GUI + AUTO + FLAGS + FASTFLAG PACKS) ]==]
+-- ✅ Kết hợp: GUI, Minimize, FPS đo, Auto Profile, Idle Throttle, FastFlag Gói (Light/Balanced/Ultra)
+-- ⚙️ Chạy trên mọi thiết bị, không phá GUI, dùng flag-style tối ưu hóa
 
 local Services = {
     Players = game:GetService("Players"),
-    UserInputService = game:GetService("UserInputService"),
     Lighting = game:GetService("Lighting"),
     Terrain = workspace:FindFirstChildOfClass("Terrain"),
-    SoundService = game:GetService("SoundService"),
     RunService = game:GetService("RunService"),
+    SoundService = game:GetService("SoundService"),
     StarterGui = game:GetService("StarterGui"),
-    ContextActionService = game:GetService("ContextActionService"),
     Chat = game:FindService("Chat"),
-    GuiService = game:GetService("GuiService"),
+    UserInputService = game:GetService("UserInputService"),
     TweenService = game:GetService("TweenService")
 }
 
 local player = Services.Players.LocalPlayer
 local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-local CurrentSettings, frameCount, fpsHistory, idleTime = {}, 0, {}, 0
-local lastPos
+local frameCount, fpsHistory, idleTime = 0, {}, 0
+local lastPos, minimized = nil, false
 
-local Profiles = {
-    Basic = {
-        Lighting = true, Terrain = false, Particles = false,
-        GUI = false, Sound = false, Character = false, DeepClean = false
+-- 🧠 Flag-based profile: BloxTrap style
+local function applyFlagOptim()
+    Services.Lighting.GlobalShadows = false
+    Services.Lighting.FogEnd = 1e10
+    Services.Lighting.Brightness = 0
+    Services.Lighting.Technology = Enum.Technology.Compatibility
+    for _, p in ipairs(workspace:GetDescendants()) do
+        if p:IsA("BasePart") then
+            p.Material = Enum.Material.SmoothPlastic
+            p.Reflectance = 0
+            p.CastShadow = false
+        elseif p:IsA("ParticleEmitter") or p:IsA("Trail") or p:IsA("Beam") then
+            p.Enabled = false
+        end
+    end
+    print("✅ Flag-style (BloxTrap) optimization applied")
+end
+
+-- 🌐 FastFlag presets
+local FastFlagPresets = {
+    Light = {
+        FFlagDisablePostFx = true,
+        FIntRenderShadowIntensity = 1,
+        DFIntTextureQualityOverride = 1,
+        DFIntCSGLevelOfDetailSwitchingDistance = 50,
+        FFlagGlobalWindRendering = false
     },
-    Advanced = {
-        Lighting = true, Terrain = true, Particles = true,
-        GUI = false, Sound = true, Character = true, DeepClean = false
+    Balanced = {
+        FFlagDisablePostFx = true,
+        FIntRenderShadowIntensity = 0,
+        DFIntTextureQualityOverride = 0,
+        DFFlagDebugRenderForceTechnologyVoxel = true,
+        FIntRenderLocalLightUpdatesMax = 2,
+        FIntRenderLocalLightUpdatesMin = 1,
+        DFIntCSGLevelOfDetailSwitchingDistance = 25,
+        FFlagDebugGraphicsPreferD3D11 = true,
+        FFlagGlobalWindRendering = false,
+        FIntDebugForceMSAASamples = 0
     },
-    Pro = {
-        Lighting = true, Terrain = true, Particles = true,
-        GUI = true, Sound = true, Character = true, DeepClean = true
+    Ultra = {
+        FFlagDisablePostFx = true,
+        FIntRenderShadowIntensity = 0,
+        DFIntTextureQualityOverride = 0,
+        DFFlagDebugRenderForceTechnologyVoxel = true,
+        FFlagDebugGraphicsPreferD3D11 = true,
+        FFlagGlobalWindRendering = false,
+        DFIntCSGLevelOfDetailSwitchingDistance = 0,
+        FIntRenderLocalLightUpdatesMax = 1,
+        FIntRenderLocalLightUpdatesMin = 1,
+        FIntDebugForceMSAASamples = 0,
+        FFlagRenderShadowEnvironmentLighting = false,
+        FFlagRenderVoxelShadows = false,
+        FFlagRenderShadowsViaLightingEngine = false,
+        FFlagTerrainCulling = true,
+        DFIntTerrainUpdateFrequency = 5
     }
 }
 
-local function applyProfile(profile)
-    if Profiles[profile] then
-        CurrentSettings = Profiles[profile]
-        print("[PROFILE] Loaded:", profile)
+local function applyFastFlags(set)
+    for flag, val in pairs(set) do
+        pcall(function()
+            settings():SetFFlag(flag, val)
+            print("[FastFlag]", flag, "=", val)
+        end)
     end
 end
 
-local function deepClean()
-    for _, obj in ipairs(game:GetDescendants()) do
-        if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("Sound") or
-           obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") or obj:IsA("ParticleEmitter") or
-           obj:IsA("Beam") or obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") or
-           obj:IsA("Sparkles") or obj:IsA("VideoFrame") or obj:IsA("ViewportFrame") or
-           obj:IsA("TextLabel") or obj:IsA("ImageLabel") or obj:IsA("TextButton") or obj:IsA("ImageButton") then
-            pcall(function() obj:Destroy() end)
-        elseif obj:IsA("BasePart") then
-            obj.Material = Enum.Material.SmoothPlastic
-            obj.Reflectance = 0
-        elseif obj:IsA("MeshPart") then
-            obj.TextureID = ""
-        end
-    end
+local function autoFastFlag()
+    local avg = 0 for _, v in ipairs(fpsHistory) do avg += v end
+    avg = avg / math.max(1, #fpsHistory)
+    if avg < 25 then applyFastFlags(FastFlagPresets.Ultra)
+    elseif avg < 45 then applyFastFlags(FastFlagPresets.Balanced)
+    else applyFastFlags(FastFlagPresets.Light) end
 end
 
-local function optimize()
-    local s = CurrentSettings
-    if s.Lighting then
-        local L = Services.Lighting
-        L.GlobalShadows = false L.FogEnd = 1e10 L.Brightness = 0
-        for _, v in ipairs(L:GetChildren()) do if v:IsA("PostEffect") then v:Destroy() end end
-    end
-    if s.Terrain and Services.Terrain then
-        Services.Terrain.WaterWaveSize = 0 Services.Terrain.WaterWaveSpeed = 0
-        Services.Terrain.WaterReflectance = 0 Services.Terrain.WaterTransparency = 0
-    end
-    if s.Particles then
-        for _, o in ipairs(workspace:GetDescendants()) do
-            if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") then o:Destroy() end
-        end
-    end
-    if s.GUI then
-        Services.StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
-        if Services.Chat then pcall(function() Services.Chat:Destroy() end) end
-    end
-    if s.Sound then
-        for _, snd in ipairs(Services.SoundService:GetDescendants()) do
-            if snd:IsA("Sound") then snd.Volume = 0 snd.Looped = false snd:Stop() end
-        end
-    end
-    if s.Character and player.Character then
-        for _, d in ipairs(player.Character:GetDescendants()) do
-            if d:IsA("Accessory") or d:IsA("Hat") or d:IsA("Shirt") or d:IsA("Pants") then
-                d:Destroy()
-            end
-        end
-    end
-    if s.DeepClean then deepClean() end
-    print("✅ Optimization Done")
-end
-
-local function createFPSCounter()
+-- 📊 FPS Counter
+local function startFPS()
     local fpsGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-    fpsGui.Name = "FPSMonitor"
+    fpsGui.Name = "FPSCounter"
     local label = Instance.new("TextLabel", fpsGui)
-    label.Position = UDim2.new(1, -120, 0, 10)
-    label.Size = UDim2.new(0, 110, 0, 30)
+    label.Size = UDim2.new(0, 100, 0, 30)
+    label.Position = UDim2.new(1, -110, 0, 10)
+    label.BackgroundTransparency = 0.4
     label.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     label.TextColor3 = Color3.new(0, 1, 0)
     label.Text = "FPS: --"
     label.Font = Enum.Font.SourceSansBold
     label.TextSize = 16
-    label.BackgroundTransparency = 0.3
+
     local last = tick()
     Services.RunService.RenderStepped:Connect(function()
         frameCount += 1
-        local now = tick()
-        if now - last >= 1 then
+        if tick() - last >= 1 then
             table.insert(fpsHistory, frameCount)
             if #fpsHistory > 5 then table.remove(fpsHistory, 1) end
             label.Text = "FPS: " .. tostring(frameCount)
-            frameCount = 0 last = now
+            frameCount = 0 last = tick()
         end
     end)
 end
 
-local function autoProfileSelect()
-    task.delay(5, function()
-        local avg = 0 for _, v in ipairs(fpsHistory) do avg += v end
-        avg = avg / math.max(1, #fpsHistory)
-        local p = avg < 25 and "Pro" or (avg < 45 and "Advanced" or "Basic")
-        print("[AUTO PROFILE] Chọn tự động:", p)
-        applyProfile(p)
-        optimize()
-    end)
-end
-
-local function throttleIdle()
+-- 💤 Idle throttle
+local function startIdleThrottle()
     Services.RunService.Heartbeat:Connect(function()
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local pos = hrp.Position
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            local pos = root.Position
             if lastPos and (pos - lastPos).Magnitude < 0.01 then
                 idleTime += 1
                 if idleTime > 180 then Services.RunService:SetThrottleFramerate(true) end
@@ -151,20 +138,21 @@ local function throttleIdle()
     end)
 end
 
--- UI
+-- 🖥️ UI
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 260, 0, 240)
-frame.Position = UDim2.new(0, 50, 0, 100)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Size = UDim2.new(0, 260, 0, 250)
+frame.Position = UDim2.new(0, 40, 0, 100)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.BorderSizePixel = 0
-frame.Active = true frame.Draggable = true
 frame.Name = "FPSBoosterMain"
+frame.Active = true
+frame.Draggable = true
 
 local header = Instance.new("TextLabel", frame)
 header.Size = UDim2.new(1, 0, 0, 35)
+header.Text = "⚙️ FPS BOOSTER"
 header.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 header.TextColor3 = Color3.new(1, 1, 1)
-header.Text = "🎮 FPS BOOSTER"
 header.Font = Enum.Font.SourceSansBold
 header.TextSize = 20
 
@@ -174,43 +162,40 @@ minimize.Position = UDim2.new(1, -35, 0, 2)
 minimize.Text = "_"
 minimize.Font = Enum.Font.SourceSansBold
 minimize.TextSize = 20
-minimize.TextColor3 = Color3.new(1, 1, 1)
 minimize.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+minimize.TextColor3 = Color3.new(1, 1, 1)
 
 local container = Instance.new("Frame", frame)
-container.Position = UDim2.new(0, 0, 0, 35)
-container.Size = UDim2.new(1, 0, 1, -35)
-container.BackgroundTransparency = 1
 container.Name = "Container"
+container.Size = UDim2.new(1, 0, 1, -35)
+container.Position = UDim2.new(0, 0, 0, 35)
+container.BackgroundTransparency = 1
 
-local minimized = false
 minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
     container.Visible = not minimized
-    frame.Size = minimized and UDim2.new(0, 260, 0, 40) or UDim2.new(0, 260, 0, 240)
+    frame.Size = minimized and UDim2.new(0, 260, 0, 40) or UDim2.new(0, 260, 0, 250)
 end)
 
-local function createProfileButton(name, y)
+local function createButton(name, y, action)
     local btn = Instance.new("TextButton", container)
-    btn.Size = UDim2.new(1, -20, 0, 50)
+    btn.Size = UDim2.new(1, -20, 0, 40)
     btn.Position = UDim2.new(0, 10, 0, y)
+    btn.Text = name
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
     btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 18
-    btn.Text = name
-    btn.MouseButton1Click:Connect(function()
-        applyProfile(name)
-        optimize()
-    end)
+    btn.MouseButton1Click:Connect(action)
 end
 
-createProfileButton("Basic", 10)
-createProfileButton("Advanced", 70)
-createProfileButton("Pro", 130)
+createButton("🚀 Flag Optimize", 10, applyFlagOptim)
+createButton("⚡ FastFlag: Light", 60, function() applyFastFlags(FastFlagPresets.Light) end)
+createButton("⚡ FastFlag: Balanced", 110, function() applyFastFlags(FastFlagPresets.Balanced) end)
+createButton("🔥 FastFlag: Ultra", 160, function() applyFastFlags(FastFlagPresets.Ultra) end)
 
--- Init
-createFPSCounter()
-autoProfileSelect()
-throttleIdle()
-print("✅ FPS BOOSTER v8.0 READY: FULL OPTIMIZE + UI + AUTO")
+-- ✅ Init
+startFPS()
+startIdleThrottle()
+task.delay(5, autoFastFlag)
+print("✅ FPS BOOSTER v9.0 ready - GUI + Auto + Flag + FastFlag")
