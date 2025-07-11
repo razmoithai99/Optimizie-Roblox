@@ -1,292 +1,493 @@
-Dưới đây là toàn bộ script hoàn chỉnh v15.0 – đã định dạng đủ để dán trực tiếp trong Arceus X. Cứ copy nguyên và chạy một lần:
-
--- FPS BOOSTER v15.0 – FULL UI + 3 GÓI + RESTORE + FADE + PRO CLEAN
+-- FPS BOOSTER v16.5 – MOBILE OPTIMIZED + ULTRA GRAPHICS REDUCTION
 
 local player = game:GetService("Players").LocalPlayer
 local S = {
-    Lighting     = game:GetService("Lighting"),
-    Terrain      = workspace:FindFirstChildOfClass("Terrain"),
+    Lighting = game:GetService("Lighting"),
+    Terrain = workspace:FindFirstChildOfClass("Terrain"),
     SoundService = game:GetService("SoundService"),
-    Players      = game:GetService("Players"),
-    Run          = game:GetService("RunService"),
+    Players = game:GetService("Players"),
+    Run = game:GetService("RunService"),
     TweenService = game:GetService("TweenService"),
-    StarterGui   = game:GetService("StarterGui"),
-    Camera       = workspace.CurrentCamera
+    StarterGui = game:GetService("StarterGui"),
+    Camera = workspace.CurrentCamera,
+    Debris = game:GetService("Debris"),
+    UserInputService = game:GetService("UserInputService")
 }
 
 local currentMode = "None"
+local originalSettings = {}
+local isAutoOptimizing = false
+local fpsHistory = {}
+local connections = {}
 
-local function notify(txt)
+-- Backup original settings
+local function backupSettings()
+    pcall(function()
+        originalSettings = {
+            GlobalShadows = S.Lighting.GlobalShadows,
+            FogEnd = S.Lighting.FogEnd,
+            Brightness = S.Lighting.Brightness,
+            Ambient = S.Lighting.Ambient,
+            OutdoorAmbient = S.Lighting.OutdoorAmbient,
+            ColorShift_Top = S.Lighting.ColorShift_Top,
+            ColorShift_Bottom = S.Lighting.ColorShift_Bottom,
+            EnvironmentDiffuseScale = S.Lighting.EnvironmentDiffuseScale,
+            EnvironmentSpecularScale = S.Lighting.EnvironmentSpecularScale,
+            WaterWaveSize = S.Terrain and S.Terrain.WaterWaveSize or 0,
+            WaterWaveSpeed = S.Terrain and S.Terrain.WaterWaveSpeed or 0,
+            WaterReflectance = S.Terrain and S.Terrain.WaterReflectance or 0,
+            WaterTransparency = S.Terrain and S.Terrain.WaterTransparency or 0,
+            Decorations = S.Terrain and S.Terrain.Decorations or false
+        }
+    end)
+end
+
+local function notify(txt, duration)
+    duration = duration or 2
     pcall(function()
         S.StarterGui:SetCore("SendNotification", {
-            Title = "FPS BOOST", Text = txt, Duration = 2
+            Title = "FPS BOOST", 
+            Text = txt, 
+            Duration = duration
         })
     end)
 end
 
 local function toggleRender(on)
-    pcall(function() S.Run:Set3dRenderingEnabled(on) end)
+    pcall(function() 
+        S.Run:Set3dRenderingEnabled(on) 
+    end)
 end
 
+-- ULTRA Graphics Reduction
+local function ultraGraphicsReduction()
+    pcall(function()
+        -- Disable all lighting effects
+        S.Lighting.GlobalShadows = false
+        S.Lighting.FogEnd = 100000
+        S.Lighting.Brightness = 0
+        S.Lighting.Ambient = Color3.new(1, 1, 1)
+        S.Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        S.Lighting.ColorShift_Top = Color3.new(0, 0, 0)
+        S.Lighting.ColorShift_Bottom = Color3.new(0, 0, 0)
+        S.Lighting.EnvironmentDiffuseScale = 0
+        S.Lighting.EnvironmentSpecularScale = 0
+        S.Lighting.ShadowSoftness = 0
+        
+        -- Terrain optimization
+        if S.Terrain then
+            S.Terrain.WaterWaveSize = 0
+            S.Terrain.WaterWaveSpeed = 0
+            S.Terrain.WaterReflectance = 0
+            S.Terrain.WaterTransparency = 1
+            S.Terrain.Decorations = false
+        end
+        
+        -- Remove all visual effects
+        for _, obj in pairs(workspace:GetDescendants()) do
+            pcall(function()
+                if obj:IsA("Decal") then
+                    obj:Remove()
+                elseif obj:IsA("Texture") then
+                    obj:Remove()
+                elseif obj:IsA("SurfaceAppearance") then
+                    obj:Remove()
+                elseif obj:IsA("ParticleEmitter") then
+                    obj.Enabled = false
+                    obj:Remove()
+                elseif obj:IsA("Trail") then
+                    obj.Enabled = false
+                    obj:Remove()
+                elseif obj:IsA("Beam") then
+                    obj.Enabled = false
+                    obj:Remove()
+                elseif obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                    obj:Remove()
+                elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                    obj:Remove()
+                elseif obj:IsA("BillboardGui") or obj:IsA("SurfaceGui") then
+                    obj:Remove()
+                elseif obj:IsA("BasePart") then
+                    obj.Material = Enum.Material.SmoothPlastic
+                    obj.CastShadow = false
+                    obj.Reflectance = 0
+                    obj.TopSurface = Enum.SurfaceType.Smooth
+                    obj.BottomSurface = Enum.SurfaceType.Smooth
+                    if obj.Name ~= "HumanoidRootPart" then
+                        obj.CanCollide = false
+                    end
+                end
+            end)
+        end
+        
+        -- Remove accessories from all players
+        for _, pl in pairs(S.Players:GetPlayers()) do
+            if pl.Character then
+                for _, part in pairs(pl.Character:GetDescendants()) do
+                    if part:IsA("Accessory") or part:IsA("Hat") or part:IsA("Clothing") then
+                        pcall(function() part:Remove() end)
+                    end
+                end
+            end
+        end
+        
+        -- Disable all sounds
+        for _, sound in pairs(S.SoundService:GetDescendants()) do
+            if sound:IsA("Sound") then
+                sound:Stop()
+                sound.Volume = 0
+            end
+        end
+        
+        -- Set camera to minimum quality
+        S.Camera.CameraType = Enum.CameraType.Custom
+        
+        -- Force garbage collection
+        collectgarbage("collect")
+    end)
+end
+
+-- Memory cleanup
+local function cleanupMemory()
+    pcall(function()
+        collectgarbage("collect")
+        
+        -- Remove debris
+        for _, obj in pairs(workspace:GetChildren()) do
+            if obj.Name:find("Debris") or obj.Name:find("Effect") or obj.Name:find("Particle") then
+                pcall(function() obj:Remove() end)
+            end
+        end
+        
+        -- Clear unused sounds
+        for _, sound in pairs(S.SoundService:GetDescendants()) do
+            if sound:IsA("Sound") and not sound.IsPlaying then
+                sound:Stop()
+                sound.SoundId = ""
+            end
+        end
+    end)
+end
+
+-- Restore function
 local function restoreDefaults()
+    for _, connection in pairs(connections) do
+        connection:Disconnect()
+    end
+    connections = {}
+    
     toggleRender(true)
-    S.Lighting.GlobalShadows = true
-    S.Lighting.FogEnd = 1000
-    S.Lighting.Brightness = 2
-    notify("🔄 Restore working: may require rejoin")
+    
+    pcall(function()
+        S.Lighting.GlobalShadows = originalSettings.GlobalShadows
+        S.Lighting.FogEnd = originalSettings.FogEnd
+        S.Lighting.Brightness = originalSettings.Brightness
+        S.Lighting.Ambient = originalSettings.Ambient
+        S.Lighting.OutdoorAmbient = originalSettings.OutdoorAmbient
+        S.Lighting.ColorShift_Top = originalSettings.ColorShift_Top
+        S.Lighting.ColorShift_Bottom = originalSettings.ColorShift_Bottom
+        S.Lighting.EnvironmentDiffuseScale = originalSettings.EnvironmentDiffuseScale
+        S.Lighting.EnvironmentSpecularScale = originalSettings.EnvironmentSpecularScale
+        
+        if S.Terrain then
+            S.Terrain.WaterWaveSize = originalSettings.WaterWaveSize
+            S.Terrain.WaterWaveSpeed = originalSettings.WaterWaveSpeed
+            S.Terrain.WaterReflectance = originalSettings.WaterReflectance
+            S.Terrain.WaterTransparency = originalSettings.WaterTransparency
+            S.Terrain.Decorations = originalSettings.Decorations
+        end
+    end)
+    
+    isAutoOptimizing = false
+    notify("🔄 Đã khôi phục cài đặt gốc", 3)
     currentMode = "None"
 end
 
-local function basicClean()
-    toggleRender(true)
-    S.Lighting.GlobalShadows = false
-    S.Lighting.FogEnd = 12000
-    S.Lighting.Brightness = 1
-    if S.Terrain then
-        S.Terrain.WaterWaveSize = 0
-        S.Terrain.WaterWaveSpeed = 0
-        S.Terrain.WaterReflectance = 0
-    end
-end
-
-local function advancedClean()
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Decal") or obj:IsA("Texture") then
-            pcall(function() obj:Destroy() end)
-        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-            obj.Enabled = false
-        end
-    end
-    if S.Terrain then
-        S.Terrain.Decorations = false
-        S.Terrain.WaterTransparency = 0.8
-    end
-    for _, s in ipairs(S.SoundService:GetDescendants()) do
-        if s:IsA("Sound") then
-            s.Volume = 0
-        end
-    end
-end
-
-local function proClean()
-    toggleRender(false)
-    if S.Terrain then S.Terrain:Clear() end
-
-    for _, o in ipairs(workspace:GetDescendants()) do
-        pcall(function()
-            if o:IsA("Decal") or o:IsA("Texture") or o:IsA("SurfaceAppearance") or
-               o:IsA("BillboardGui") or o:IsA("SurfaceGui") or
-               o:IsA("PointLight") or o:IsA("SpotLight") or o:IsA("SurfaceLight") then
-                o:Destroy()
-            elseif o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") then
-                o.Enabled = false
-            elseif o:IsA("BasePart") then
-                o.Material = Enum.Material.SmoothPlastic
-                o.CastShadow = false
-                o.Reflectance = 0
-                pcall(function()
-                    o.CustomPhysicalProperties = PhysicalProperties.new(0.01,0.01,0.01)
-                    o.CollisionFidelity = Enum.CollisionFidelity.Box
-                end)
-            end
-        end)
-    end
-
-    for _, pl in ipairs(S.Players:GetPlayers()) do
-        if pl.Character then
-            for _, d in ipairs(pl.Character:GetDescendants()) do
-                if d:IsA("Accessory") or d:IsA("Clothing") then
-                    pcall(function() d:Destroy() end)
-                end
-            end
-            local h = pl.Character:FindFirstChildWhichIsA("Humanoid")
-            if h then
-                h.PlatformStand = true
-                h.AutoRotate = false
-                h:ChangeState(Enum.HumanoidStateType.Physics)
-            end
-        end
-    end
-
-    for _, s in ipairs(S.SoundService:GetDescendants()) do
-        if s:IsA("Sound") then
-            s:Stop()
-            s.Volume = 0
-        end
-    end
-end
-
+-- Mode functions
 local function basic()
-    basicClean()
-    notify("🟢 Basic Mode activated")
-    currentMode = "Basic"
-    fadeLabel("Basic")
+    pcall(function()
+        toggleRender(true)
+        S.Lighting.GlobalShadows = false
+        S.Lighting.FogEnd = 50000
+        S.Lighting.Brightness = 0.5
+        S.Lighting.EnvironmentDiffuseScale = 0.1
+        S.Lighting.EnvironmentSpecularScale = 0.1
+        
+        if S.Terrain then
+            S.Terrain.WaterWaveSize = 0
+            S.Terrain.WaterWaveSpeed = 0
+            S.Terrain.WaterReflectance = 0
+        end
+        
+        cleanupMemory()
+        notify("🟢 Chế độ Basic", 2)
+        currentMode = "Basic"
+    end)
 end
 
 local function advanced()
-    basicClean()
-    advancedClean()
-    notify("🟠 Advanced Mode activated")
-    currentMode = "Advanced"
-    fadeLabel("Advanced")
+    basic()
+    pcall(function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Decal") or obj:IsA("Texture") then
+                obj.Transparency = 1
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+                obj.Enabled = false
+            end
+        end
+        
+        if S.Terrain then
+            S.Terrain.Decorations = false
+        end
+        
+        for _, sound in pairs(S.SoundService:GetDescendants()) do
+            if sound:IsA("Sound") then
+                sound.Volume = 0
+            end
+        end
+        
+        notify("🟠 Chế độ Advanced", 2)
+        currentMode = "Advanced"
+    end)
 end
 
 local function pro()
-    basicClean()
-    advancedClean()
-    proClean()
-    notify("🔴 Pro Mode activated")
-    currentMode = "Pro"
-    fadeLabel("Pro")
-end
-
--- Status Fade indicator
-function fadeLabel(mode)
-    local gui = player:WaitForChild("PlayerGui")
-    local status = Instance.new("TextLabel", gui)
-    status.Size = UDim2.new(0, 200, 0, 24)
-    status.Position = UDim2.new(0.5, -100, 1, -50)
-    status.BackgroundTransparency = 1
-    status.TextColor3 = Color3.new(1,1,1)
-    status.Font = Enum.Font.Gotham
-    status.TextSize = 14
-    status.Text = "🎯 Mode: " .. mode
-    local tween = S.TweenService:Create(status, TweenInfo.new(0.3), {
-        BackgroundTransparency = 0.4,
-        TextTransparency = 0
-    })
-    tween:Play()
-    task.delay(3, function()
-        local tw2 = S.TweenService:Create(status, TweenInfo.new(0.5), {
-            BackgroundTransparency = 1,
-            TextTransparency = 1
-        })
-        tw2:Play()
-        task.delay(0.5, function()
-            status:Destroy()
-        end)
+    advanced()
+    pcall(function()
+        toggleRender(false)
+        ultraGraphicsReduction()
+        
+        -- Clear terrain
+        if S.Terrain then
+            S.Terrain:Clear()
+        end
+        
+        notify("🔴 Chế độ Pro - Siêu tăng FPS", 3)
+        currentMode = "Pro"
     end)
 end
 
--- UI
-local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local function ultra()
+    pro()
+    pcall(function()
+        -- Most aggressive optimization
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Parent ~= player.Character then
+                obj.Transparency = 0.8
+                obj.CanCollide = false
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.CastShadow = false
+            end
+        end
+        
+        -- Remove all GUI elements except essential ones
+        for _, gui in pairs(player.PlayerGui:GetDescendants()) do
+            if gui:IsA("ScreenGui") and gui.Name ~= "FPSBoosterGUI" then
+                gui.Enabled = false
+            end
+        end
+        
+        notify("⚡ Chế độ ULTRA - FPS tối đa", 3)
+        currentMode = "Ultra"
+    end)
+end
+
+local function toggleAutoOptimize()
+    isAutoOptimizing = not isAutoOptimizing
+    if isAutoOptimizing then
+        notify("🤖 Auto-Optimize BẬT", 2)
+        local connection = S.Run.Heartbeat:Connect(function()
+            wait(3)
+            if #fpsHistory > 0 then
+                local fps = fpsHistory[#fpsHistory]
+                if fps < 25 and currentMode ~= "Ultra" then
+                    ultra()
+                elseif fps < 35 and currentMode ~= "Pro" then
+                    pro()
+                elseif fps < 45 and currentMode == "None" then
+                    advanced()
+                end
+            end
+        end)
+        table.insert(connections, connection)
+    else
+        notify("🤖 Auto-Optimize TẮT", 2)
+        for _, connection in pairs(connections) do
+            connection:Disconnect()
+        end
+        connections = {}
+    end
+end
+
+-- Initialize
+backupSettings()
+
+-- Mobile-optimized UI
+local gui = Instance.new("ScreenGui")
+gui.Name = "FPSBoosterGUI"
 gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 300, 0, 380)
-frame.Position = UDim2.new(-1, 0, 0, 90)
-frame.BackgroundColor3 = Color3.fromRGB(28,28,28)
-frame.Active, frame.Draggable = true, true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
-S.TweenService:Create(frame, TweenInfo.new(0.6), {
-    Position = UDim2.new(0,16,0,90)
-}):Play()
+-- Main frame - optimized for mobile
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 400)
+frame.Position = UDim2.new(0.5, -140, 0.5, -200)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
 
-local header = Instance.new("TextLabel", frame)
-header.Size = UDim2.new(1,0,0,60)
-header.BackgroundColor3 = Color3.fromRGB(40,40,40)
-header.Text = "⚙️ FPS BOOST v15.0"
-header.Font = Enum.Font.GothamBold
-header.TextSize = 20
-header.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", header).CornerRadius = UDim.new(0,12)
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = frame
 
-local close = Instance.new("TextButton", header)
-close.Size = UDim2.new(0,40,0,40)
-close.Position = UDim2.new(1,-46,0,10)
-close.Text = "✖"
-close.Font = Enum.Font.GothamBold
+-- Header
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 50)
+header.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+header.BorderSizePixel = 0
+header.Parent = frame
+
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 12)
+headerCorner.Parent = header
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "⚡ FPS BOOSTER v16.5"
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = header
+
+-- Close button
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0, 40, 0, 40)
+close.Position = UDim2.new(1, -45, 0, 5)
+close.Text = "×"
+close.Font = Enum.Font.SourceSansBold
 close.TextSize = 24
-close.BackgroundColor3 = Color3.fromRGB(60,60,60)
-close.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", close).CornerRadius = UDim.new(0,10)
+close.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+close.TextColor3 = Color3.new(1, 1, 1)
+close.BorderSizePixel = 0
+close.Parent = header
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = close
+
 close.MouseButton1Click:Connect(function()
-    S.TweenService:Create(frame, TweenInfo.new(0.4), {
-        Position = UDim2.new(-1, 0, 0, 90)
-    }):Play()
+    gui:Destroy()
 end)
 
+-- Button creation function
 local function createBtn(txt, y, fn, color)
-    local b = Instance.new("TextButton", frame)
-    b.Size = UDim2.new(1, -40, 0, 50)
-    b.Position = UDim2.new(0,20,0,y)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -20, 0, 45)
+    b.Position = UDim2.new(0, 10, 0, y)
     b.Text = txt
-    b.Font = Enum.Font.Gotham
+    b.Font = Enum.Font.SourceSansBold
     b.TextSize = 16
-    b.TextColor3 = Color3.new(1,1,1)
-    b.BackgroundColor3 = Color3.fromRGB(45,45,45)
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
-    b.MouseEnter:Connect(function()
-        S.TweenService:Create(b, TweenInfo.new(0.2), {
-            BackgroundColor3 = color
-        }):Play()
-        b:TweenSize(
-            UDim2.new(1, -30, 0, 55),
-            Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.BackgroundColor3 = color
+    b.BorderSizePixel = 0
+    b.Parent = frame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = b
+    
+    b.MouseButton1Click:Connect(function()
+        -- Simple click feedback
+        b.BackgroundColor3 = Color3.new(1, 1, 1)
+        wait(0.1)
+        b.BackgroundColor3 = color
+        fn()
     end)
-    b.MouseLeave:Connect(function()
-        S.TweenService:Create(b, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(45,45,45)
-        }):Play()
-        b:TweenSize(
-            UDim2.new(1, -40, 0, 50),
-            Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
-    end)
-    b.MouseButton1Click:Connect(fn)
 end
 
-createBtn("🟢 Basic",     80, basic,    Color3.fromRGB(34,85,45))
-createBtn("⚙️ Advanced", 150, advanced, Color3.fromRGB(160,100,40))
-createBtn("🚀 Pro",      220, pro,      Color3.fromRGB(110,40,40))
-createBtn("🔄 Restore",  290, restoreDefaults, Color3.fromRGB(70,70,70))
+-- Create buttons
+createBtn("🟢 Basic", 60, basic, Color3.fromRGB(40, 120, 40))
+createBtn("🟠 Advanced", 115, advanced, Color3.fromRGB(200, 120, 40))
+createBtn("🔴 Pro", 170, pro, Color3.fromRGB(180, 40, 40))
+createBtn("⚡ Ultra", 225, ultra, Color3.fromRGB(120, 40, 180))
+createBtn("🤖 Auto", 280, toggleAutoOptimize, Color3.fromRGB(40, 100, 180))
+createBtn("🔄 Restore", 335, restoreDefaults, Color3.fromRGB(80, 80, 80))
 
--- FPS Counter
-local fps = Instance.new("TextLabel", gui)
-fps.Size = UDim2.new(0, 140, 0, 28)
-fps.Position = UDim2.new(1, -160, 0, 12)
-fps.BackgroundColor3 = Color3.fromRGB(20,20,20)
-fps.BackgroundTransparency = 0.2
-fps.TextColor3 = Color3.fromRGB(0,255,0)
-fps.Font = Enum.Font.GothamBold
+-- Compact FPS counter
+local fpsFrame = Instance.new("Frame")
+fpsFrame.Size = UDim2.new(0, 120, 0, 50)
+fpsFrame.Position = UDim2.new(1, -130, 0, 10)
+fpsFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+fpsFrame.BackgroundTransparency = 0.3
+fpsFrame.BorderSizePixel = 0
+fpsFrame.Parent = gui
+
+local fpsCorner = Instance.new("UICorner")
+fpsCorner.CornerRadius = UDim.new(0, 8)
+fpsCorner.Parent = fpsFrame
+
+local fps = Instance.new("TextLabel")
+fps.Size = UDim2.new(1, -10, 0, 25)
+fps.Position = UDim2.new(0, 5, 0, 0)
+fps.BackgroundTransparency = 1
+fps.TextColor3 = Color3.fromRGB(0, 255, 0)
+fps.Font = Enum.Font.SourceSansBold
 fps.TextSize = 16
 fps.Text = "FPS: --"
+fps.Parent = fpsFrame
 
+local mode = Instance.new("TextLabel")
+mode.Size = UDim2.new(1, -10, 0, 20)
+mode.Position = UDim2.new(0, 5, 0, 25)
+mode.BackgroundTransparency = 1
+mode.TextColor3 = Color3.fromRGB(200, 200, 200)
+mode.Font = Enum.Font.SourceSans
+mode.TextSize = 12
+mode.Text = "Mode: None"
+mode.Parent = fpsFrame
+
+-- Simple FPS monitoring
 local cnt, t0 = 0, tick()
 S.Run.RenderStepped:Connect(function()
-    cnt += 1
+    cnt = cnt + 1
     if tick() - t0 >= 1 then
-        fps.Text = "FPS: "..cnt
+        local currentFPS = cnt
+        fps.Text = "FPS: " .. currentFPS
+        
+        -- Update FPS history
+        table.insert(fpsHistory, currentFPS)
+        if #fpsHistory > 5 then
+            table.remove(fpsHistory, 1)
+        end
+        
+        -- Color coding
+        if currentFPS >= 50 then
+            fps.TextColor3 = Color3.fromRGB(0, 255, 0)
+        elseif currentFPS >= 30 then
+            fps.TextColor3 = Color3.fromRGB(255, 255, 0)
+        else
+            fps.TextColor3 = Color3.fromRGB(255, 0, 0)
+        end
+        
+        mode.Text = "Mode: " .. currentMode
         cnt, t0 = 0, tick()
     end
 end)
 
+-- Auto cleanup every 20 seconds
+spawn(function()
+    while true do
+        wait(20)
+        cleanupMemory()
+    end
+end)
 
----
-
-✅ Hướng dẫn nhanh:
-
-1. Mở Arceus X, paste toàn script trên vào Console.
-
-
-2. Bấm Enter để chạy.
-
-
-3. Giao diện menu sẽ slide-in, chứa 4 nút:
-
-🟢 Basic – tắt bóng, water nhẹ
-
-⚙️ Advanced – thêm xoá decal, particle, mute âm
-
-🚀 Pro – đóng render, xóa hoàn toàn (textures, light, part…)
-
-🔄 Restore – phục hồi cài đặt gốc
-
-
-
-4. Kiểm tra phần fade label báo chế độ đang hoạt động + FPS counter góc phải
-
-
-
-Nếu bạn vẫn thấy không hoạt động, hãy gửi mình thông báo lỗi, hình ảnh console, hoặc tên game cụ thể để mình kiểm tra kỹ hơn.
-
-i
+-- Auto-start with Basic mode
+wait(2)
+basic()
+notify("🎮 FPS Booster sẵn sàng! Thử chế độ ULTRA!", 4)
