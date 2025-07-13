@@ -1,4 +1,4 @@
--- FPS BOOSTER v17.0 – ULTRA OPTIMIZED + COMPACT GUI
+-- FPS BOOSTER v17.0 – ULTRA OPTIMIZED + COMPACT GUI + CPU OPTIMIZATION
 
 local player = game:GetService("Players").LocalPlayer
 local S = {
@@ -9,13 +9,114 @@ local S = {
     Run = game:GetService("RunService"),
     StarterGui = game:GetService("StarterGui"),
     Camera = workspace.CurrentCamera,
-    UserInputService = game:GetService("UserInputService")
+    UserInputService = game:GetService("UserInputService"),
+    Stats = game:GetService("Stats"),
+    ReplicatedStorage = game:GetService("ReplicatedStorage"),
+    CoreGui = game:GetService("CoreGui")
 }
 
 local currentMode = "None"
 local originalSettings = {}
 local isProcessing = false
 local fpsHistory = {}
+local cpuConnections = {}
+local isOptimizingCPU = false
+
+-- CPU Optimization Functions
+local function optimizeCPU()
+    if isOptimizingCPU then return end
+    isOptimizingCPU = true
+    
+    pcall(function()
+        -- Reduce RunService connections
+        for _, connection in pairs(cpuConnections) do
+            connection:Disconnect()
+        end
+        cpuConnections = {}
+        
+        -- Limit heartbeat frequency
+        local heartbeatThrottle = 0
+        local heartbeatConnection = S.Run.Heartbeat:Connect(function()
+            heartbeatThrottle = heartbeatThrottle + 1
+            if heartbeatThrottle >= 3 then -- Run every 3 frames instead of every frame
+                heartbeatThrottle = 0
+                -- Your code here if needed
+            end
+        end)
+        table.insert(cpuConnections, heartbeatConnection)
+        
+        -- Optimize network traffic
+        if S.ReplicatedStorage then
+            for _, obj in pairs(S.ReplicatedStorage:GetDescendants()) do
+                if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                    -- Reduce remote event frequency
+                    local oldFireServer = obj.FireServer
+                    local lastFire = 0
+                    obj.FireServer = function(self, ...)
+                        if tick() - lastFire > 0.1 then -- Throttle to 10 FPS
+                            lastFire = tick()
+                            return oldFireServer(self, ...)
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Reduce physics calculations
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Parent ~= player.Character then
+                pcall(function()
+                    obj.CanCollide = false
+                    obj.Anchored = true
+                    obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    obj.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                end)
+            end
+        end
+        
+        -- Disable unnecessary services
+        pcall(function()
+            S.Stats.PerformanceStats.Enabled = false
+        end)
+        
+        -- Optimize camera
+        S.Camera.FieldOfView = 70 -- Standard FOV to reduce rendering load
+        
+        -- Reduce script execution frequency
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Script") or obj:IsA("LocalScript") then
+                if obj.Parent ~= player.PlayerScripts and obj.Parent ~= player.PlayerGui then
+                    pcall(function()
+                        obj.Disabled = true
+                    end)
+                end
+            end
+        end
+        
+        -- Memory optimization
+        collectgarbage("setpause", 100)
+        collectgarbage("setstepmul", 5000)
+        
+        notify("🔧 CPU Optimized", 2)
+    end)
+    
+    isOptimizingCPU = false
+end
+
+local function disableCPUOptimization()
+    pcall(function()
+        for _, connection in pairs(cpuConnections) do
+            connection:Disconnect()
+        end
+        cpuConnections = {}
+        
+        -- Reset garbage collection
+        collectgarbage("setpause", 200)
+        collectgarbage("setstepmul", 200)
+        
+        notify("🔧 CPU Optimization Disabled", 2)
+    end)
+end
 
 -- Backup original settings
 local function backupSettings()
@@ -144,6 +245,9 @@ local function extremeGraphicsReduction()
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
         
+        -- CPU Optimization
+        optimizeCPU()
+        
         -- Aggressive garbage collection
         collectgarbage("collect")
     end)
@@ -178,6 +282,9 @@ local function restoreDefaults()
     if isProcessing then return end
     isProcessing = true
     
+    -- Disable CPU optimization first
+    disableCPUOptimization()
+    
     pcall(function()
         S.Lighting.Technology = originalSettings.Technology
         S.Lighting.GlobalShadows = originalSettings.GlobalShadows
@@ -200,6 +307,15 @@ local function restoreDefaults()
         
         settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
         settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Automatic
+        
+        -- Re-enable scripts
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Script") or obj:IsA("LocalScript") then
+                pcall(function()
+                    obj.Disabled = false
+                end)
+            end
+        end
     end)
     
     notify("🔄 Đã khôi phục cài đặt", 2)
@@ -252,6 +368,9 @@ local function advanced()
         if S.Terrain then
             S.Terrain.Decorations = false
         end
+        
+        -- Light CPU optimization
+        optimizeCPU()
         
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level02
         notify("🟠 Advanced Mode", 2)
@@ -320,10 +439,21 @@ local function ultra()
             end)
         end
         
+        -- Disable all unnecessary scripts for maximum CPU reduction
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Script") or obj:IsA("LocalScript") then
+                if obj.Parent ~= player.PlayerScripts and obj.Parent ~= player.PlayerGui then
+                    pcall(function()
+                        obj.Disabled = true
+                    end)
+                end
+            end
+        end
+        
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
         
-        notify("⚡ ULTRA Mode - Max FPS", 3)
+        notify("⚡ ULTRA Mode - Max Performance", 3)
         currentMode = "Ultra"
     end)
     
@@ -341,8 +471,8 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 -- Main frame - much smaller
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 280)
-frame.Position = UDim2.new(0, 10, 0.5, -140)
+frame.Size = UDim2.new(0, 200, 0, 320)
+frame.Position = UDim2.new(0, 10, 0.5, -160)
 frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -415,7 +545,7 @@ minimize.MouseButton1Click:Connect(function()
         frame.Size = UDim2.new(0, 200, 0, 35)
         minimize.Text = "+"
     else
-        frame.Size = UDim2.new(0, 200, 0, 280)
+        frame.Size = UDim2.new(0, 200, 0, 320)
         minimize.Text = "–"
     end
 end)
@@ -458,7 +588,8 @@ createBtn("🟢 Basic", 45, basic, Color3.fromRGB(40, 120, 40))
 createBtn("🟠 Advanced", 85, advanced, Color3.fromRGB(200, 120, 40))
 createBtn("🔴 Pro", 125, pro, Color3.fromRGB(180, 40, 40))
 createBtn("⚡ Ultra", 165, ultra, Color3.fromRGB(120, 40, 180))
-createBtn("🔄 Restore", 205, restoreDefaults, Color3.fromRGB(80, 80, 80))
+createBtn("🔧 CPU Boost", 205, optimizeCPU, Color3.fromRGB(40, 100, 200))
+createBtn("🔄 Restore", 245, restoreDefaults, Color3.fromRGB(80, 80, 80))
 
 -- Compact FPS counter
 local fpsFrame = Instance.new("Frame")
@@ -525,4 +656,24 @@ spawn(function()
     end
 end)
 
-notify("⚡ FPS Booster Ready!", 3)
+-- CPU monitoring
+spawn(function()
+    while true do
+        wait(5)
+        if currentMode ~= "None" then
+            -- Force garbage collection periodically
+            collectgarbage("collect")
+            
+            -- Check for memory leaks and clean up
+            pcall(function()
+                for _, obj in pairs(workspace:GetChildren()) do
+                    if obj.Name:match("Debris") or obj.Name:match("Effect") then
+                        obj:Destroy()
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+notify("⚡ FPS Booster Ready - Now with CPU Optimization!", 4)
