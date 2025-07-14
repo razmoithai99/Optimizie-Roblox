@@ -1,4 +1,4 @@
--- FPS BOOSTER v17.0 – ULTRA OPTIMIZED + COMPACT GUI + CPU OPTIMIZATION
+-- FPS BOOSTER v18.0 – LUXURY EDITION + ADVANCED OPTIMIZATION + PREMIUM GUI
 
 local player = game:GetService("Players").LocalPlayer
 local S = {
@@ -12,7 +12,9 @@ local S = {
     UserInputService = game:GetService("UserInputService"),
     Stats = game:GetService("Stats"),
     ReplicatedStorage = game:GetService("ReplicatedStorage"),
-    CoreGui = game:GetService("CoreGui")
+    CoreGui = game:GetService("CoreGui"),
+    TweenService = game:GetService("TweenService"),
+    HttpService = game:GetService("HttpService")
 }
 
 local currentMode = "None"
@@ -21,39 +23,87 @@ local isProcessing = false
 local fpsHistory = {}
 local cpuConnections = {}
 local isOptimizingCPU = false
+local autoOptimization = false
+local performanceStats = {
+    avgFPS = 0,
+    maxFPS = 0,
+    minFPS = 999,
+    memoryUsage = 0,
+    cpuUsage = 0
+}
 
--- CPU Optimization Functions
+-- Enhanced FastFlags Configuration
+local function applyFastFlags()
+    pcall(function()
+        -- Graphics Quality Override
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
+        
+        -- Texture Quality
+        local renderSettings = settings():GetService("RenderSettings")
+        renderSettings.QualityLevel = Enum.QualityLevel.Level01
+        
+        -- Grass and Terrain
+        if S.Terrain then
+            S.Terrain.ReadVoxels = false
+            S.Terrain.Decoration = false
+        end
+        
+        -- Disable unnecessary features
+        S.Lighting.Technology = Enum.Technology.Legacy
+        S.Lighting.GlobalShadows = false
+        S.Lighting.FogEnd = 100000
+        S.Lighting.Brightness = 0
+        
+        -- Network optimization
+        settings().Network.IncomingReplicationLag = 0
+        settings().Network.DataSendRate = 60
+        settings().Network.DataReceiveRate = 60
+        
+        -- Physics optimization
+        settings().Physics.AllowSleep = true
+        settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+        
+        -- Rendering optimization
+        settings().Rendering.FrameRateManager = Enum.FrameRateManagerMode.On
+        settings().Rendering.EagerBulkExecution = true
+        settings().Rendering.Graphics.EnableFRM = true
+        
+        notify("⚡ FastFlags Applied", 2)
+    end)
+end
+
+-- Advanced CPU Optimization
 local function optimizeCPU()
     if isOptimizingCPU then return end
     isOptimizingCPU = true
     
     pcall(function()
-        -- Reduce RunService connections
+        -- Clear existing connections
         for _, connection in pairs(cpuConnections) do
             connection:Disconnect()
         end
         cpuConnections = {}
         
-        -- Limit heartbeat frequency
+        -- Optimized heartbeat with frame limiting
         local heartbeatThrottle = 0
         local heartbeatConnection = S.Run.Heartbeat:Connect(function()
             heartbeatThrottle = heartbeatThrottle + 1
-            if heartbeatThrottle >= 3 then -- Run every 3 frames instead of every frame
+            if heartbeatThrottle >= 5 then -- Run every 5 frames
                 heartbeatThrottle = 0
-                -- Your code here if needed
+                collectgarbage("step", 1)
             end
         end)
         table.insert(cpuConnections, heartbeatConnection)
         
-        -- Optimize network traffic
+        -- Network throttling
         if S.ReplicatedStorage then
             for _, obj in pairs(S.ReplicatedStorage:GetDescendants()) do
                 if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                    -- Reduce remote event frequency
                     local oldFireServer = obj.FireServer
                     local lastFire = 0
                     obj.FireServer = function(self, ...)
-                        if tick() - lastFire > 0.1 then -- Throttle to 10 FPS
+                        if tick() - lastFire > 0.16 then -- ~60 FPS limit
                             lastFire = tick()
                             return oldFireServer(self, ...)
                         end
@@ -62,7 +112,7 @@ local function optimizeCPU()
             end
         end
         
-        -- Reduce physics calculations
+        -- Advanced physics optimization
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and obj.Parent ~= player.Character then
                 pcall(function()
@@ -70,19 +120,16 @@ local function optimizeCPU()
                     obj.Anchored = true
                     obj.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                     obj.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    obj.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
                 end)
             end
         end
         
-        -- Disable unnecessary services
-        pcall(function()
-            S.Stats.PerformanceStats.Enabled = false
-        end)
+        -- Memory optimization
+        collectgarbage("setpause", 110)
+        collectgarbage("setstepmul", 1000)
         
-        -- Optimize camera
-        S.Camera.FieldOfView = 70 -- Standard FOV to reduce rendering load
-        
-        -- Reduce script execution frequency
+        -- Script optimization
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("Script") or obj:IsA("LocalScript") then
                 if obj.Parent ~= player.PlayerScripts and obj.Parent ~= player.PlayerGui then
@@ -93,29 +140,10 @@ local function optimizeCPU()
             end
         end
         
-        -- Memory optimization
-        collectgarbage("setpause", 100)
-        collectgarbage("setstepmul", 5000)
-        
-        notify("🔧 CPU Optimized", 2)
+        notify("🔧 Advanced CPU Optimization Applied", 2)
     end)
     
     isOptimizingCPU = false
-end
-
-local function disableCPUOptimization()
-    pcall(function()
-        for _, connection in pairs(cpuConnections) do
-            connection:Disconnect()
-        end
-        cpuConnections = {}
-        
-        -- Reset garbage collection
-        collectgarbage("setpause", 200)
-        collectgarbage("setstepmul", 200)
-        
-        notify("🔧 CPU Optimization Disabled", 2)
-    end)
 end
 
 -- Backup original settings
@@ -136,39 +164,70 @@ local function backupSettings()
             WaterReflectance = S.Terrain and S.Terrain.WaterReflectance or 0,
             WaterTransparency = S.Terrain and S.Terrain.WaterTransparency or 0,
             Decorations = S.Terrain and S.Terrain.Decorations or false,
-            Technology = S.Lighting.Technology
+            Technology = S.Lighting.Technology,
+            QualityLevel = settings().Rendering.QualityLevel,
+            MeshPartDetailLevel = settings().Rendering.MeshPartDetailLevel
         }
     end)
 end
 
-local function notify(txt, duration)
-    duration = duration or 2
+-- Enhanced notification system
+local function notify(txt, duration, color)
+    duration = duration or 3
+    color = color or Color3.fromRGB(0, 255, 0)
+    
     pcall(function()
         S.StarterGui:SetCore("SendNotification", {
-            Title = "FPS BOOST", 
+            Title = "⚡ FPS BOOSTER LUXURY", 
             Text = txt, 
-            Duration = duration
+            Duration = duration,
+            Button1 = "OK"
         })
     end)
 end
 
--- Extreme graphics reduction
+-- Performance monitoring
+local function updatePerformanceStats(currentFPS)
+    table.insert(fpsHistory, currentFPS)
+    if #fpsHistory > 60 then
+        table.remove(fpsHistory, 1)
+    end
+    
+    local sum = 0
+    for _, fps in pairs(fpsHistory) do
+        sum = sum + fps
+    end
+    
+    performanceStats.avgFPS = math.floor(sum / #fpsHistory)
+    performanceStats.maxFPS = math.max(performanceStats.maxFPS, currentFPS)
+    performanceStats.minFPS = math.min(performanceStats.minFPS, currentFPS)
+    
+    -- Memory usage (approximate)
+    performanceStats.memoryUsage = math.floor(collectgarbage("count") / 1024)
+end
+
+-- Extreme graphics reduction with new features
 local function extremeGraphicsReduction()
     if isProcessing then return end
     isProcessing = true
     
     pcall(function()
+        -- Apply FastFlags first
+        applyFastFlags()
+        
         -- Disable all lighting effects
         S.Lighting.Technology = Enum.Technology.Legacy
         S.Lighting.GlobalShadows = false
         S.Lighting.FogEnd = 1000000
         S.Lighting.Brightness = 0
-        S.Lighting.Ambient = Color3.new(0.8, 0.8, 0.8)
-        S.Lighting.OutdoorAmbient = Color3.new(0.8, 0.8, 0.8)
+        S.Lighting.Ambient = Color3.new(0.9, 0.9, 0.9)
+        S.Lighting.OutdoorAmbient = Color3.new(0.9, 0.9, 0.9)
         S.Lighting.ColorShift_Top = Color3.new(0, 0, 0)
         S.Lighting.ColorShift_Bottom = Color3.new(0, 0, 0)
         S.Lighting.EnvironmentDiffuseScale = 0
         S.Lighting.EnvironmentSpecularScale = 0
+        S.Lighting.ShadowSoftness = 0
+        S.Lighting.ExposureCompensation = 0
         
         -- Clear terrain completely
         if S.Terrain then
@@ -177,9 +236,10 @@ local function extremeGraphicsReduction()
             S.Terrain.WaterReflectance = 0
             S.Terrain.WaterTransparency = 1
             S.Terrain.Decorations = false
+            S.Terrain.ReadVoxels = false
         end
         
-        -- Remove all visual effects in chunks to prevent lag
+        -- Advanced object processing
         local processed = 0
         for _, obj in pairs(workspace:GetDescendants()) do
             processed = processed + 1
@@ -193,6 +253,7 @@ local function extremeGraphicsReduction()
                 elseif obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
                     obj:Destroy()
                 elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                    obj.Brightness = 0
                     obj:Destroy()
                 elseif obj:IsA("BasePart") then
                     obj.Material = Enum.Material.SmoothPlastic
@@ -201,22 +262,28 @@ local function extremeGraphicsReduction()
                     obj.TopSurface = Enum.SurfaceType.Smooth
                     obj.BottomSurface = Enum.SurfaceType.Smooth
                     
-                    -- Remove all textures and materials
+                    -- Remove all surface details
                     for _, child in pairs(obj:GetChildren()) do
                         if child:IsA("Decal") or child:IsA("Texture") or child:IsA("SurfaceAppearance") then
                             child:Destroy()
                         end
                     end
+                elseif obj:IsA("MeshPart") then
+                    obj.TextureID = ""
+                    obj.Material = Enum.Material.SmoothPlastic
+                elseif obj:IsA("UnionOperation") then
+                    obj.Material = Enum.Material.SmoothPlastic
+                    obj.UsePartColor = true
                 end
             end)
             
-            -- Prevent lag by yielding every 100 objects
-            if processed % 100 == 0 then
-                wait()
+            -- Prevent lag with better yielding
+            if processed % 150 == 0 then
+                S.Run.Heartbeat:Wait()
             end
         end
         
-        -- Remove all player accessories and clothing
+        -- Remove player accessories and clothing
         for _, pl in pairs(S.Players:GetPlayers()) do
             if pl.Character then
                 for _, part in pairs(pl.Character:GetChildren()) do
@@ -227,103 +294,101 @@ local function extremeGraphicsReduction()
             end
         end
         
-        -- Disable all sounds
+        -- Advanced sound optimization
         S.SoundService.AmbientReverb = Enum.ReverbType.NoReverb
         S.SoundService.DistanceFactor = 0
         S.SoundService.DopplerScale = 0
         S.SoundService.RolloffScale = 0
+        S.SoundService.RespectFilteringEnabled = false
         
         for _, sound in pairs(workspace:GetDescendants()) do
             if sound:IsA("Sound") then
                 sound:Stop()
                 sound.Volume = 0
                 sound.SoundId = ""
+                sound.Looped = false
             end
         end
         
-        -- Force minimum quality settings
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
-        
-        -- CPU Optimization
+        -- CPU optimization
         optimizeCPU()
         
-        -- Aggressive garbage collection
-        collectgarbage("collect")
+        -- Aggressive memory cleanup
+        for i = 1, 3 do
+            collectgarbage("collect")
+            wait(0.1)
+        end
     end)
     
     isProcessing = false
 end
 
--- Memory cleanup
+-- Enhanced memory cleanup
 local function cleanupMemory()
     pcall(function()
+        -- Multiple garbage collection passes
+        collectgarbage("collect")
         collectgarbage("collect")
         
         -- Remove debris and effects
         for _, obj in pairs(workspace:GetChildren()) do
-            if obj.Name:match("Debris") or obj.Name:match("Effect") or obj.Name:match("Particle") then
+            if obj.Name:match("Debris") or obj.Name:match("Effect") or obj.Name:match("Particle") or obj.Name:match("Trail") then
                 pcall(function() obj:Destroy() end)
             end
         end
         
-        -- Clear unused instances
+        -- Clear unused sounds
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("Sound") and not obj.IsPlaying then
                 obj:Stop()
                 obj.SoundId = ""
+                obj.Volume = 0
             end
         end
-    end)
-end
-
--- Restore function
-local function restoreDefaults()
-    if isProcessing then return end
-    isProcessing = true
-    
-    -- Disable CPU optimization first
-    disableCPUOptimization()
-    
-    pcall(function()
-        S.Lighting.Technology = originalSettings.Technology
-        S.Lighting.GlobalShadows = originalSettings.GlobalShadows
-        S.Lighting.FogEnd = originalSettings.FogEnd
-        S.Lighting.Brightness = originalSettings.Brightness
-        S.Lighting.Ambient = originalSettings.Ambient
-        S.Lighting.OutdoorAmbient = originalSettings.OutdoorAmbient
-        S.Lighting.ColorShift_Top = originalSettings.ColorShift_Top
-        S.Lighting.ColorShift_Bottom = originalSettings.ColorShift_Bottom
-        S.Lighting.EnvironmentDiffuseScale = originalSettings.EnvironmentDiffuseScale
-        S.Lighting.EnvironmentSpecularScale = originalSettings.EnvironmentSpecularScale
         
-        if S.Terrain then
-            S.Terrain.WaterWaveSize = originalSettings.WaterWaveSize
-            S.Terrain.WaterWaveSpeed = originalSettings.WaterWaveSpeed
-            S.Terrain.WaterReflectance = originalSettings.WaterReflectance
-            S.Terrain.WaterTransparency = originalSettings.WaterTransparency
-            S.Terrain.Decorations = originalSettings.Decorations
-        end
-        
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Automatic
-        
-        -- Re-enable scripts
+        -- Clear unused textures
         for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("Script") or obj:IsA("LocalScript") then
-                pcall(function()
-                    obj.Disabled = false
-                end)
+            if obj:IsA("Decal") or obj:IsA("Texture") then
+                if obj.Transparency >= 0.9 then
+                    obj:Destroy()
+                end
             end
         end
+        
+        notify("🧹 Memory Cleaned", 1)
     end)
-    
-    notify("🔄 Đã khôi phục cài đặt", 2)
-    currentMode = "None"
-    isProcessing = false
 end
 
--- Optimized mode functions
+-- Auto optimization system
+local function toggleAutoOptimization()
+    autoOptimization = not autoOptimization
+    if autoOptimization then
+        notify("🤖 Auto-Optimization Enabled", 2)
+        spawn(function()
+            while autoOptimization do
+                wait(10)
+                if not isProcessing then
+                    cleanupMemory()
+                    
+                    -- Auto-adjust based on FPS
+                    if performanceStats.avgFPS < 30 and currentMode == "None" then
+                        basic()
+                    elseif performanceStats.avgFPS < 20 and currentMode == "Basic" then
+                        advanced()
+                    elseif performanceStats.avgFPS < 15 and currentMode == "Advanced" then
+                        pro()
+                    elseif performanceStats.avgFPS < 10 and currentMode == "Pro" then
+                        ultra()
+                    end
+                end
+            end
+        end)
+    else
+        notify("🤖 Auto-Optimization Disabled", 2)
+    end
+end
+
+-- Enhanced mode functions
 local function basic()
     if isProcessing then return end
     isProcessing = true
@@ -334,16 +399,20 @@ local function basic()
         S.Lighting.Brightness = 0.5
         S.Lighting.EnvironmentDiffuseScale = 0.2
         S.Lighting.EnvironmentSpecularScale = 0.2
+        S.Lighting.ShadowSoftness = 0
         
         if S.Terrain then
             S.Terrain.WaterWaveSize = 0
             S.Terrain.WaterWaveSpeed = 0
             S.Terrain.WaterReflectance = 0.1
+            S.Terrain.Decorations = false
         end
         
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level03
+        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level04
+        
         cleanupMemory()
-        notify("🟢 Basic Mode", 2)
+        notify("🟢 Basic Mode Activated", 2)
         currentMode = "Basic"
     end)
     
@@ -356,24 +425,29 @@ local function advanced()
     
     basic()
     pcall(function()
-        -- Hide textures and effects
+        -- Enhanced texture management
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("Decal") or obj:IsA("Texture") then
-                obj.Transparency = 1
+                obj.Transparency = 0.8
             elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
                 obj.Enabled = false
+            elseif obj:IsA("BasePart") then
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.CastShadow = false
             end
         end
         
         if S.Terrain then
             S.Terrain.Decorations = false
+            S.Terrain.ReadVoxels = false
         end
         
-        -- Light CPU optimization
         optimizeCPU()
         
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level02
-        notify("🟠 Advanced Mode", 2)
+        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level03
+        
+        notify("🟠 Advanced Mode Activated", 2)
         currentMode = "Advanced"
     end)
     
@@ -388,17 +462,24 @@ local function pro()
     pcall(function()
         extremeGraphicsReduction()
         
-        -- Remove all non-essential parts
+        -- Advanced part optimization
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and obj.Parent ~= player.Character then
-                obj.Transparency = 0.5
+                obj.Transparency = 0.3
                 obj.CanCollide = false
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.CastShadow = false
+                obj.Color = Color3.new(0.7, 0.7, 0.7)
+            elseif obj:IsA("MeshPart") then
+                obj.TextureID = ""
                 obj.Material = Enum.Material.SmoothPlastic
             end
         end
         
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        notify("🔴 Pro Mode", 2)
+        settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level02
+        
+        notify("🔴 Pro Mode Activated", 2)
         currentMode = "Pro"
     end)
     
@@ -412,20 +493,25 @@ local function ultra()
     pcall(function()
         extremeGraphicsReduction()
         
-        -- Most aggressive optimization
+        -- Ultra aggressive optimization
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("BasePart") and obj.Parent ~= player.Character then
-                obj.Transparency = 0.9
+                obj.Transparency = 0.8
                 obj.CanCollide = false
                 obj.Material = Enum.Material.SmoothPlastic
                 obj.CastShadow = false
                 obj.Color = Color3.new(0.5, 0.5, 0.5)
+                obj.Shape = Enum.PartType.Block
             elseif obj:IsA("MeshPart") then
                 obj.TextureID = ""
+                obj.Material = Enum.Material.SmoothPlastic
+            elseif obj:IsA("UnionOperation") then
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.UsePartColor = true
             end
         end
         
-        -- Hide all GUI except essential
+        -- Hide non-essential GUIs
         for _, gui in pairs(player.PlayerGui:GetChildren()) do
             if gui:IsA("ScreenGui") and gui.Name ~= "FPSBoosterGUI" then
                 gui.Enabled = false
@@ -435,11 +521,13 @@ local function ultra()
         -- Clear terrain completely
         if S.Terrain then
             spawn(function()
-                S.Terrain:Clear()
+                pcall(function()
+                    S.Terrain:Clear()
+                end)
             end)
         end
         
-        -- Disable all unnecessary scripts for maximum CPU reduction
+        -- Maximum script optimization
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("Script") or obj:IsA("LocalScript") then
                 if obj.Parent ~= player.PlayerScripts and obj.Parent ~= player.PlayerGui then
@@ -453,227 +541,227 @@ local function ultra()
         settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
         settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
         
-        notify("⚡ ULTRA Mode - Max Performance", 3)
+        notify("⚡ ULTRA Mode - Maximum Performance", 3)
         currentMode = "Ultra"
     end)
     
     isProcessing = false
 end
 
+-- Restore function
+local function restoreDefaults()
+    if isProcessing then return end
+    isProcessing = true
+    
+    -- Disable auto optimization
+    autoOptimization = false
+    
+    -- Disable CPU optimization
+    for _, connection in pairs(cpuConnections) do
+        connection:Disconnect()
+    end
+    cpuConnections = {}
+    
+    pcall(function()
+        -- Restore lighting
+        S.Lighting.Technology = originalSettings.Technology
+        S.Lighting.GlobalShadows = originalSettings.GlobalShadows
+        S.Lighting.FogEnd = originalSettings.FogEnd
+        S.Lighting.Brightness = originalSettings.Brightness
+        S.Lighting.Ambient = originalSettings.Ambient
+        S.Lighting.OutdoorAmbient = originalSettings.OutdoorAmbient
+        S.Lighting.ColorShift_Top = originalSettings.ColorShift_Top
+        S.Lighting.ColorShift_Bottom = originalSettings.ColorShift_Bottom
+        S.Lighting.EnvironmentDiffuseScale = originalSettings.EnvironmentDiffuseScale
+        S.Lighting.EnvironmentSpecularScale = originalSettings.EnvironmentSpecularScale
+        
+        -- Restore terrain
+        if S.Terrain then
+            S.Terrain.WaterWaveSize = originalSettings.WaterWaveSize
+            S.Terrain.WaterWaveSpeed = originalSettings.WaterWaveSpeed
+            S.Terrain.WaterReflectance = originalSettings.WaterReflectance
+            S.Terrain.WaterTransparency = originalSettings.WaterTransparency
+            S.Terrain.Decorations = originalSettings.Decorations
+        end
+        
+        -- Restore quality settings
+        settings().Rendering.QualityLevel = originalSettings.QualityLevel
+        settings().Rendering.MeshPartDetailLevel = originalSettings.MeshPartDetailLevel
+        
+        -- Re-enable scripts
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Script") or obj:IsA("LocalScript") then
+                pcall(function()
+                    obj.Disabled = false
+                end)
+            end
+        end
+        
+        -- Re-enable GUIs
+        for _, gui in pairs(player.PlayerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                gui.Enabled = true
+            end
+        end
+        
+        -- Reset garbage collection
+        collectgarbage("setpause", 200)
+        collectgarbage("setstepmul", 200)
+    end)
+    
+    notify("🔄 Settings Restored", 2)
+    currentMode = "None"
+    isProcessing = false
+end
+
 -- Initialize
 backupSettings()
 
--- Compact mobile-optimized UI
+-- LUXURY GUI DESIGN
 local gui = Instance.new("ScreenGui")
 gui.Name = "FPSBoosterGUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Main frame - much smaller
+-- Main frame with luxury design
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 320)
-frame.Position = UDim2.new(0, 10, 0.5, -160)
-frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+frame.Size = UDim2.new(0, 320, 0, 480)
+frame.Position = UDim2.new(0, 20, 0.5, -240)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 frame.Parent = gui
 
+-- Luxury gradient background
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 25)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 20, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 20))
+})
+gradient.Rotation = 45
+gradient.Parent = frame
+
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.CornerRadius = UDim.new(0, 15)
 frameCorner.Parent = frame
 
--- Header - smaller
+-- Luxury border effect
+local border = Instance.new("Frame")
+border.Size = UDim2.new(1, 4, 1, 4)
+border.Position = UDim2.new(0, -2, 0, -2)
+border.BackgroundColor3 = Color3.fromRGB(100, 50, 200)
+border.BorderSizePixel = 0
+border.ZIndex = frame.ZIndex - 1
+border.Parent = frame
+
+local borderGradient = Instance.new("UIGradient")
+borderGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 100))
+})
+borderGradient.Rotation = 0
+borderGradient.Parent = border
+
+local borderCorner = Instance.new("UICorner")
+borderCorner.CornerRadius = UDim.new(0, 17)
+borderCorner.Parent = border
+
+-- Animated border
+spawn(function()
+    while true do
+        for i = 0, 360, 2 do
+            borderGradient.Rotation = i
+            wait(0.01)
+        end
+    end
+end)
+
+-- Luxury header
 local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 35)
-header.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+header.Size = UDim2.new(1, 0, 0, 60)
+header.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 header.BorderSizePixel = 0
 header.Parent = frame
 
+local headerGradient = Instance.new("UIGradient")
+headerGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 30))
+})
+headerGradient.Rotation = 90
+headerGradient.Parent = header
+
 local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 8)
+headerCorner.CornerRadius = UDim.new(0, 15)
 headerCorner.Parent = header
 
+-- Luxury title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -70, 1, 0)
-title.Position = UDim2.new(0, 5, 0, 0)
+title.Size = UDim2.new(1, -100, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "⚡ FPS BOOST"
+title.Text = "⚡ FPS BOOSTER LUXURY"
 title.Font = Enum.Font.SourceSansBold
-title.TextSize = 14
-title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 18
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextStrokeTransparency = 0.5
+title.TextStrokeColor3 = Color3.fromRGB(100, 0, 255)
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = header
 
--- Minimize button
-local minimize = Instance.new("TextButton")
-minimize.Size = UDim2.new(0, 30, 0, 25)
-minimize.Position = UDim2.new(1, -65, 0, 5)
-minimize.Text = "–"
-minimize.Font = Enum.Font.SourceSansBold
-minimize.TextSize = 16
-minimize.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-minimize.TextColor3 = Color3.new(1, 1, 1)
-minimize.BorderSizePixel = 0
-minimize.Parent = header
+-- Subtitle
+local subtitle = Instance.new("TextLabel")
+subtitle.Size = UDim2.new(1, -100, 0, 20)
+subtitle.Position = UDim2.new(0, 10, 0, 35)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "v18.0 - Premium Edition"
+subtitle.Font = Enum.Font.SourceSans
+subtitle.TextSize = 12
+subtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Parent = header
 
-local minimizeCorner = Instance.new("UICorner")
-minimizeCorner.CornerRadius = UDim.new(0, 4)
-minimizeCorner.Parent = minimize
-
--- Close button
+-- Luxury close button
 local close = Instance.new("TextButton")
-close.Size = UDim2.new(0, 30, 0, 25)
-close.Position = UDim2.new(1, -32, 0, 5)
+close.Size = UDim2.new(0, 40, 0, 40)
+close.Position = UDim2.new(1, -50, 0, 10)
 close.Text = "×"
 close.Font = Enum.Font.SourceSansBold
-close.TextSize = 16
-close.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+close.TextSize = 24
+close.BackgroundColor3 = Color3.fromRGB(80, 20, 20)
 close.TextColor3 = Color3.new(1, 1, 1)
 close.BorderSizePixel = 0
 close.Parent = header
 
 local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 4)
+closeCorner.CornerRadius = UDim.new(0, 8)
 closeCorner.Parent = close
 
--- Minimize functionality
-local isMinimized = false
-minimize.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        frame.Size = UDim2.new(0, 200, 0, 35)
-        minimize.Text = "+"
-    else
-        frame.Size = UDim2.new(0, 200, 0, 320)
-        minimize.Text = "–"
-    end
-end)
-
-close.MouseButton1Click:Connect(function()
-    gui:Destroy()
-end)
-
--- Button creation function - smaller buttons
-local function createBtn(txt, y, fn, color)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -10, 0, 32)
-    b.Position = UDim2.new(0, 5, 0, y)
-    b.Text = txt
-    b.Font = Enum.Font.SourceSansBold
-    b.TextSize = 12
-    b.TextColor3 = Color3.new(1, 1, 1)
-    b.BackgroundColor3 = color
-    b.BorderSizePixel = 0
-    b.Parent = frame
+-- Luxury button creation function
+local function createLuxuryBtn(txt, y, fn, color1, color2, icon)
+    local btnFrame = Instance.new("Frame")
+    btnFrame.Size = UDim2.new(1, -20, 0, 45)
+    btnFrame.Position = UDim2.new(0, 10, 0, y)
+    btnFrame.BackgroundColor3 = color1
+    btnFrame.BorderSizePixel = 0
+    btnFrame.Parent = frame
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 4)
-    corner.Parent = b
+    local btnGradient = Instance.new("UIGradient")
+    btnGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, color1),
+        ColorSequenceKeypoint.new(1, color2)
+    })
+    btnGradient.Rotation = 45
+    btnGradient.Parent = btnFrame
     
-    b.MouseButton1Click:Connect(function()
-        if not isProcessing then
-            -- Click feedback
-            local originalColor = b.BackgroundColor3
-            b.BackgroundColor3 = Color3.new(0.8, 0.8, 0.8)
-            wait(0.1)
-            b.BackgroundColor3 = originalColor
-            fn()
-        end
-    end)
-end
-
--- Create smaller buttons
-createBtn("🟢 Basic", 45, basic, Color3.fromRGB(40, 120, 40))
-createBtn("🟠 Advanced", 85, advanced, Color3.fromRGB(200, 120, 40))
-createBtn("🔴 Pro", 125, pro, Color3.fromRGB(180, 40, 40))
-createBtn("⚡ Ultra", 165, ultra, Color3.fromRGB(120, 40, 180))
-createBtn("🔧 CPU Boost", 205, optimizeCPU, Color3.fromRGB(40, 100, 200))
-createBtn("🔄 Restore", 245, restoreDefaults, Color3.fromRGB(80, 80, 80))
-
--- Compact FPS counter
-local fpsFrame = Instance.new("Frame")
-fpsFrame.Size = UDim2.new(0, 90, 0, 35)
-fpsFrame.Position = UDim2.new(1, -100, 0, 5)
-fpsFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-fpsFrame.BackgroundTransparency = 0.3
-fpsFrame.BorderSizePixel = 0
-fpsFrame.Parent = gui
-
-local fpsCorner = Instance.new("UICorner")
-fpsCorner.CornerRadius = UDim.new(0, 6)
-fpsCorner.Parent = fpsFrame
-
-local fps = Instance.new("TextLabel")
-fps.Size = UDim2.new(1, -5, 0, 18)
-fps.Position = UDim2.new(0, 2, 0, 0)
-fps.BackgroundTransparency = 1
-fps.TextColor3 = Color3.fromRGB(0, 255, 0)
-fps.Font = Enum.Font.SourceSansBold
-fps.TextSize = 12
-fps.Text = "FPS: --"
-fps.Parent = fpsFrame
-
-local mode = Instance.new("TextLabel")
-mode.Size = UDim2.new(1, -5, 0, 15)
-mode.Position = UDim2.new(0, 2, 0, 18)
-mode.BackgroundTransparency = 1
-mode.TextColor3 = Color3.fromRGB(200, 200, 200)
-mode.Font = Enum.Font.SourceSans
-mode.TextSize = 10
-mode.Text = "None"
-mode.Parent = fpsFrame
-
--- Optimized FPS monitoring
-local cnt, t0 = 0, tick()
-S.Run.RenderStepped:Connect(function()
-    cnt = cnt + 1
-    if tick() - t0 >= 1 then
-        local currentFPS = cnt
-        fps.Text = "FPS: " .. currentFPS
-        
-        -- Color coding
-        if currentFPS >= 50 then
-            fps.TextColor3 = Color3.fromRGB(0, 255, 0)
-        elseif currentFPS >= 30 then
-            fps.TextColor3 = Color3.fromRGB(255, 255, 0)
-        else
-            fps.TextColor3 = Color3.fromRGB(255, 0, 0)
-        end
-        
-        mode.Text = currentMode
-        cnt, t0 = 0, tick()
-    end
-end)
-
--- Auto cleanup every 30 seconds
-spawn(function()
-    while true do
-        wait(30)
-        if not isProcessing then
-            cleanupMemory()
-        end
-    end
-end)
-
--- CPU monitoring
-spawn(function()
-    while true do
-        wait(5)
-        if currentMode ~= "None" then
-            -- Force garbage collection periodically
-            collectgarbage("collect")
-            
-            -- Check for memory leaks and clean up
-            pcall(function()
-                for _, obj in pairs(workspace:GetChildren()) do
-                    if obj.Name:match("Debris") or obj.Name:match("Effect") then
-                        obj:Destroy()
-                    end
-                end
-            end)
-        end
-    end
-end)
-
-notify("⚡ FPS Booster Ready - Now with CPU Optimization!", 4)
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = btnFrame
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.Position = UDim2.new(0, 0, 0, 0)
+    btn.
